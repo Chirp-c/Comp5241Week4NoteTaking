@@ -101,10 +101,11 @@ notetaking-app/
 6. **Access the application**
    - Open your browser and go to `http://localhost:5001`
 
-In the editor, choose Simplified Chinese, Traditional Chinese, or Japanese and
-select **Translate**. The translated title and content replace the editor text
-and are saved automatically. Translation uses the text currently in the editor,
-including unsaved changes.
+In the editor, choose Simplified Chinese, Traditional Chinese, Japanese,
+English, Korean, French, German, or Spanish and select **Translate**. The
+translated title and content replace the editor text and are saved
+automatically. Translation uses the text currently in the editor, including
+unsaved changes.
 
 ### Deploy to Vercel
 
