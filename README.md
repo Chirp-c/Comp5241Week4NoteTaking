@@ -1,4 +1,4 @@
-# NoteTaker - Personal Note Management Application
+# comp5241 NoteTaker - Personal Note Management Application
 
 A modern, responsive web application for managing personal notes with a beautiful user interface and full CRUD functionality.
 
