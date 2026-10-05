@@ -5,6 +5,7 @@ __pycache__/
 
 
 .env
+.vercel
 # Database
 *.db
 
@@ -112,3 +113,4 @@ Thumbs.db
 .coverage
 coverage.xml
 *.prof
+.env*

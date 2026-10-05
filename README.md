@@ -106,6 +106,22 @@ select **Translate**. The translated title and content replace the editor text
 and are saved automatically. Translation uses the text currently in the editor,
 including unsaved changes.
 
+### Deploy to Vercel
+
+The Flask app can be deployed as a Vercel Python function with the Vercel CLI:
+
+```bash
+npm install --global vercel
+vercel
+```
+
+For notes to persist between serverless invocations, configure a hosted
+PostgreSQL database and set `DATABASE_URL` in the Vercel project's environment
+variables. Also set a strong `SECRET_KEY`; set `OPENROUTER_API_KEY` and
+`OPENROUTER_MODEL` if translation is enabled. SQLite is only suitable for
+local development because Vercel's function filesystem is not persistent.
+Deploy to production with `vercel --prod`.
+
 ## 📡 API Endpoints
 
 ### Notes API
