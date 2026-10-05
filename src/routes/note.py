@@ -12,6 +12,11 @@ TRANSLATION_LANGUAGES = {
     'zh-CN': 'Simplified Chinese',
     'zh-TW': 'Traditional Chinese',
     'ja': 'Japanese',
+    'en': 'English',
+    'ko': 'Korean',
+    'fr': 'French',
+    'de': 'German',
+    'es': 'Spanish',
 }
 TRANSLATION_PROMPT_PATH = Path(__file__).resolve().parents[2] / 'prompt' / 'translate.txt'
 OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
