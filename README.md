@@ -36,6 +36,8 @@ The application is deployed and accessible at: **https://3dhkilc88dkk.manus.spac
 
 ```
 notetaking-app/
+├── prompt/
+│   └── translate.txt       # Editable translation prompt template
 ├── src/
 │   ├── models/
 │   │   ├── user.py          # User model (template)
@@ -51,6 +53,7 @@ notetaking-app/
 │   └── main.py              # Flask application entry point
 ├── venv/                    # Python virtual environment
 ├── requirements.txt         # Python dependencies
+├── .env                    # Local API configuration (not committed)
 └── README.md               # This file
 ```
 
@@ -79,13 +82,29 @@ notetaking-app/
    pip install -r requirements.txt
    ```
 
-4. **Run the application**
+4. **Configure translation**
+   Add your OpenRouter key to a `.env` file in the project root:
+   ```env
+   OPENROUTER_API_KEY=your-openrouter-api-key
+   OPENROUTER_MODEL=openai/gpt-4o-mini
+   ```
+
+   `.env` is ignored by Git. Translation instructions are editable in
+   `prompt/translate.txt`; keep the `{{target_language}}` placeholder and the
+   required JSON response fields (`title` and `content`) intact.
+
+5. **Run the application**
    ```bash
    python src/main.py
    ```
 
-5. **Access the application**
+6. **Access the application**
    - Open your browser and go to `http://localhost:5001`
+
+In the editor, choose Simplified Chinese, Traditional Chinese, or Japanese and
+select **Translate**. The translated title and content replace the editor text
+and are saved automatically. Translation uses the text currently in the editor,
+including unsaved changes.
 
 ## 📡 API Endpoints
 
@@ -205,4 +224,3 @@ Potential improvements for future versions:
 ---
 
 **Built with ❤️ using Flask, SQLite, and modern web technologies**
-
