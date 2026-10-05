@@ -167,7 +167,9 @@
 
         .editor-actions {
             display: flex;
+            align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -198,6 +200,60 @@
         .btn-delete:hover {
             background: #c82333;
             transform: translateY(-1px);
+        }
+
+        .translation-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .translation-controls .form-label {
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        .translation-controls .form-input {
+            width: auto;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .btn-translate {
+            background: #667eea;
+            color: white;
+            min-height: 42px;
+        }
+
+        .btn-translate:hover {
+            background: #586fd6;
+            transform: translateY(-1px);
+        }
+
+        .btn-translate:disabled {
+            cursor: wait;
+            opacity: 0.7;
+        }
+
+        .llm-response {
+            margin-top: 20px;
+            padding: 16px;
+            border: 1px solid #d9def5;
+            border-radius: 10px;
+            background: #f8f9ff;
+        }
+
+        .llm-response h3 {
+            margin-bottom: 10px;
+        }
+
+        .llm-response pre {
+            overflow-x: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
         }
 
         .form-group {
@@ -346,6 +402,15 @@
                     <div class="editor-actions" id="editorActions" style="display: none;">
                         <button class="btn btn-save" id="saveBtn">💾 Save</button>
                         <button class="btn btn-delete" id="deleteBtn">🗑️ Delete</button>
+                        <button class="btn btn-translate" id="translateBtn" type="button">Translate</button>
+                        <div class="translation-controls">
+                            <label class="form-label" for="translationLanguage">Translate to</label>
+                            <select class="form-input" id="translationLanguage">
+                                <option value="zh-CN">Chinese (Simplified)</option>
+                                <option value="zh-TW">Chinese (Traditional)</option>
+                                <option value="ja">Japanese</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -361,6 +426,11 @@
                         <label class="form-label" for="noteContent">Content</label>
                         <textarea class="form-textarea" id="noteContent" placeholder="Start writing your note..."></textarea>
                     </div>
+
+                    <section class="llm-response" id="llmResponse" style="display: none;" aria-live="polite">
+                        <h3>LLM JSON response</h3>
+                        <pre id="llmResponseJson"></pre>
+                    </section>
                 </div>
 
                 <div class="empty-state" id="emptyState">
@@ -377,6 +447,7 @@
                 this.notes = [];
                 this.currentNote = null;
                 this.isLoading = false;
+                this.translationRequestId = 0;
                 this.init();
             }
 
@@ -389,6 +460,7 @@
                 document.getElementById('newNoteBtn').addEventListener('click', () => this.createNewNote());
                 document.getElementById('saveBtn').addEventListener('click', () => this.saveNote());
                 document.getElementById('deleteBtn').addEventListener('click', () => this.deleteNote());
+                document.getElementById('translateBtn').addEventListener('click', () => this.translateNote());
                 document.getElementById('searchBox').addEventListener('input', (e) => this.searchNotes(e.target.value));
                 
                 // Auto-save on content change (debounced)
@@ -402,8 +474,14 @@
                     }, 2000);
                 };
                 
-                document.getElementById('noteTitle').addEventListener('input', autoSave);
-                document.getElementById('noteContent').addEventListener('input', autoSave);
+                document.getElementById('noteTitle').addEventListener('input', () => {
+                    this.resetTranslationState();
+                    autoSave();
+                });
+                document.getElementById('noteContent').addEventListener('input', () => {
+                    this.resetTranslationState();
+                    autoSave();
+                });
             }
 
             async loadNotes() {
@@ -446,6 +524,7 @@
                 const note = this.notes.find(n => n.id === noteId);
                 if (!note) return;
 
+                this.resetTranslationState();
                 this.currentNote = note;
                 this.showEditor();
                 this.renderNotesList(); // Re-render to update active state
@@ -456,6 +535,7 @@
             }
 
             createNewNote() {
+                this.resetTranslationState();
                 this.currentNote = {
                     id: null,
                     title: '',
@@ -483,11 +563,78 @@
             }
 
             hideEditor() {
+                this.resetTranslationState();
                 document.getElementById('emptyState').style.display = 'block';
                 document.getElementById('editorForm').style.display = 'none';
                 document.getElementById('editorActions').style.display = 'none';
                 document.getElementById('editorTitle').textContent = 'Select a note to edit';
                 this.currentNote = null;
+            }
+
+            async translateNote() {
+                const title = document.getElementById('noteTitle').value;
+                const content = document.getElementById('noteContent').value;
+                if (!title.trim() && !content.trim()) {
+                    this.showMessage('Enter a title or content to translate.', 'error');
+                    return;
+                }
+
+                const requestId = ++this.translationRequestId;
+                const translateButton = document.getElementById('translateBtn');
+                translateButton.disabled = true;
+                translateButton.textContent = 'Translating...';
+                document.getElementById('llmResponse').style.display = 'none';
+                document.getElementById('llmResponseJson').textContent = '';
+                this.hideMessage();
+
+                try {
+                    const response = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title,
+                            content,
+                            target_language: document.getElementById('translationLanguage').value
+                        })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Translation failed.');
+                    }
+                    if (requestId !== this.translationRequestId) return;
+
+                    if (
+                        title !== document.getElementById('noteTitle').value ||
+                        content !== document.getElementById('noteContent').value
+                    ) {
+                        this.showMessage('The note changed while translating. Please translate it again.', 'error');
+                        return;
+                    }
+
+                    document.getElementById('noteTitle').value = result.title;
+                    document.getElementById('noteContent').value = result.content;
+                    document.getElementById('llmResponseJson').textContent = result.llm_response;
+                    document.getElementById('llmResponse').style.display = 'block';
+                    await this.saveNote();
+                } catch (error) {
+                    if (requestId === this.translationRequestId) {
+                        this.showMessage(`Error translating note: ${error.message}`, 'error');
+                    }
+                } finally {
+                    if (requestId === this.translationRequestId) {
+                        translateButton.disabled = false;
+                        translateButton.textContent = 'Translate';
+                    }
+                }
+            }
+
+            resetTranslationState() {
+                this.translationRequestId += 1;
+                const translateButton = document.getElementById('translateBtn');
+                translateButton.disabled = false;
+                translateButton.textContent = 'Translate';
+                document.getElementById('llmResponse').style.display = 'none';
+                document.getElementById('llmResponseJson').textContent = '';
             }
 
             async saveNote(isAutoSave = false) {
@@ -597,7 +744,10 @@
 
             showMessage(message, type) {
                 const messageArea = document.getElementById('messageArea');
-                messageArea.innerHTML = `<div class="${type}">${message}</div>`;
+                const messageElement = document.createElement('div');
+                messageElement.className = type;
+                messageElement.textContent = message;
+                messageArea.replaceChildren(messageElement);
                 
                 if (type === 'success') {
                     setTimeout(() => this.hideMessage(), 3000);
@@ -637,4 +787,3 @@
     </script>
 </body>
 </html>
-
