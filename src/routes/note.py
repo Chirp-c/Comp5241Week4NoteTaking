@@ -22,6 +22,35 @@ TRANSLATION_PROMPT_PATH = Path(__file__).resolve().parents[2] / 'prompt' / 'tran
 OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 
+def _escape_unescaped_json_control_characters(text):
+    """Escape literal control characters inside JSON string values."""
+    escaped_text = []
+    in_string = False
+    escaped = False
+
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped_text.append(character)
+                escaped = False
+            elif character == '\\':
+                escaped_text.append(character)
+                escaped = True
+            elif character == '"':
+                escaped_text.append(character)
+                in_string = False
+            elif ord(character) < 0x20:
+                escaped_text.append(f'\\u{ord(character):04x}')
+            else:
+                escaped_text.append(character)
+        else:
+            escaped_text.append(character)
+            if character == '"':
+                in_string = True
+
+    return ''.join(escaped_text)
+
+
 @note_bp.route('/translate', methods=['POST'])
 def translate_note():
     """Translate an unsaved note draft using the configured OpenRouter model."""
@@ -91,6 +120,12 @@ def translate_note():
         except (json.JSONDecodeError, AttributeError):
             provider_error = None
         message = provider_error or f'OpenRouter request failed with HTTP {exc.code}'
+        if exc.code == 429:
+            response = jsonify({'error': message})
+            retry_after = exc.headers.get('Retry-After') if exc.headers else None
+            if retry_after:
+                response.headers['Retry-After'] = retry_after
+            return response, 429
         return jsonify({'error': message}), 502
     except (error.URLError, TimeoutError) as exc:
         current_app.logger.warning('OpenRouter request failed: %s', exc)
@@ -101,6 +136,7 @@ def translate_note():
 
     try:
         translated_text = provider_response['choices'][0]['message']['content']
+        translated_text = _escape_unescaped_json_control_characters(translated_text)
         translated = json.loads(translated_text)
     except (KeyError, IndexError, TypeError, json.JSONDecodeError):
         current_app.logger.exception('OpenRouter response did not contain a valid translation')
@@ -112,6 +148,9 @@ def translate_note():
         or not isinstance(translated.get('content'), str)
     ):
         return jsonify({'error': 'The translation response must contain title and content text'}), 502
+
+    translated['title'] = translated['title'].replace('\\n', '\n')
+    translated['content'] = translated['content'].replace('\\n', '\n')
 
     return jsonify({
         'title': translated['title'],

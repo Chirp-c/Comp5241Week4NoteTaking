@@ -6,4 +6,5 @@ Translate both the title and the content. If either field is empty, return it as
 
 Return only a valid JSON object with exactly these two string fields:
 {"title":"translated title","content":"translated content"}
+Escape line breaks and other control characters inside JSON strings (for example, use \n for a line break); never include raw control characters inside a string.
 Do not include Markdown fences or any additional commentary.
